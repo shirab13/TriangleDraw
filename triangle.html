@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Triangle</title>
+</head>
+<body>
+<a href="index.html">← Back</a>
+<h1>Triangle from Submitted Points</h1>
+
+<canvas id="triCanvas" width="800" height="800"></canvas>
+<p id="msg"></p>
+
+<script>
+  // Read query params
+  const queryParams = new URLSearchParams(location.search);
+  const getNum = key => {
+    return Number(queryParams.get(key));
+  };
+
+  const x1 = getNum('x1'), y1 = getNum('y1');
+  const x2 = getNum('x2'), y2 = getNum('y2');
+  const x3 = getNum('x3'), y3 = getNum('y3');
+
+  const msgEl = document.getElementById('msg');
+  const canvas = document.getElementById('triCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // scale and fit any coordinate range nicely into the 800x800 canvas
+  const xs = [x1, x2, x3], ys = [y1, y2, y3];
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+  const pad = 30; // padding around drawing
+  const drawW = canvas.width  - pad * 2;
+  const drawH = canvas.height - pad * 2;
+  //                    10      8
+  const w = Math.max(1, maxX - minX); // 2
+  const h = Math.max(1, maxY - minY); // 2
+  const scale = Math.min(drawW / w, drawH / h);
+
+  // Convert (math-style) coords to canvas coords:
+  // x' = pad + (x - minX) * scale
+  // y' = pad + (maxY - y) * scale  // flip Y so higher y goes "up"
+  const tx = x => pad + (x - minX) * scale;
+  const ty = y => pad + (maxY - y) * scale;
+
+  // Clear & draw
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw triangle
+  ctx.beginPath();
+  ctx.moveTo(tx(x1), ty(y1));
+  ctx.lineTo(tx(x2), ty(y2));
+  ctx.lineTo(tx(x3), ty(y3));
+  ctx.closePath();
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw vertices
+  const pts = [[x1,y1],[x2,y2],[x3,y3]];
+  pts.forEach(([x,y], i) => {
+    ctx.beginPath();
+    ctx.arc(tx(x), ty(y), 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillText(`P${i+1} (${x}, ${y})`, tx(x) + 8, ty(y) - 8);
+  });
+
+  // angles in javascript are measured in radians, but we want to display degrees
+  // so we will convert them later
+  const normalizeAngle = (a) => {
+    // normalize to (-PI, PI]
+    while (a <= -Math.PI) a += 2*Math.PI;
+    while (a > Math.PI) a -= 2*Math.PI;
+    return a;
+  };
+
+  const dist = (xA, yA, xB, yB) => Math.hypot(xA - xB, yA - yB);
+
+  const drawAngleAt = (Px, Py, Ax, Ay, Bx, By) => {
+    // Work in canvas coordinates
+    const PxC = tx(Px), PyC = ty(Py);
+    const AxC = tx(Ax), AyC = ty(Ay);
+    const BxC = tx(Bx), ByC = ty(By);
+
+    const v1x = AxC - PxC, v1y = AyC - PyC;
+    const v2x = BxC - PxC, v2y = ByC - PyC;
+
+    const len1 = Math.hypot(v1x, v1y);
+    const len2 = Math.hypot(v2x, v2y);
+
+    // Numeric angle between vectors (0..PI)
+    const cosTheta = (v1x*v2x + v1y*v2y) / (len1 * len2);
+    const theta = Math.acos(Math.max(-1, Math.min(1, cosTheta)));
+
+    // Absolute directions
+    const t1 = Math.atan2(v1y, v1x);
+    const t2 = Math.atan2(v2y, v2x);
+
+    // Choose the smaller sweep from t1 to t2
+    let raw = normalizeAngle(t2 - t1);
+    let sweep = Math.abs(raw) <= Math.PI ? raw : (raw > 0 ? raw - 2*Math.PI : raw + 2*Math.PI);
+
+    const minEdge = Math.min(len1, len2);
+    // Math.min(40, …)
+    // Caps the radius at 40px max. Prevents arcs from being huge if the triangle is very large.
+    // Math.max(18, …)
+    // Ensures the radius is at least 18px, so the angle label is readable.
+    // minEdge * 0.25
+    // Uses 25% of the shortest edge length to determine the radius.
+    const r = Math.max(18, Math.min(40, minEdge * 0.25));
+
+    // Draw the arc for the angle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(PxC, PyC, r, t1, t1 + sweep, sweep < 0);
+    ctx.stroke();
+
+    // Angle label (degrees) at mid-sweep
+    const mid = t1 + sweep / 2;
+    const lx = PxC + (r + 14) * Math.cos(mid);
+    const ly = PyC + (r + 14) * Math.sin(mid);
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    const deg = (theta * 180 / Math.PI).toFixed(1);
+    ctx.fillText(`${deg}°`, lx, ly);
+    ctx.restore();
+  };
+
+  // Draw angle at each vertex: P1 (between P2 and P3), etc.
+  drawAngleAt(x1, y1, x2, y2, x3, y3);
+  drawAngleAt(x2, y2, x1, y1, x3, y3);
+  drawAngleAt(x3, y3, x1, y1, x2, y2);
+
+  msgEl.textContent = `Plotted P1(${x1}, ${y1}), P2(${x2}, ${y2}), P3(${x3}, ${y3}).`;
+</script>
+</body>
+</html>
