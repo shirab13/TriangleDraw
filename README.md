@@ -21,7 +21,7 @@ I went with basic HTML and JavaScript to keep it simple and working
 on any device without the need for any additional libraries or frameworks.
 
 2. "כיצד חישבתם את ערך הזווית?"
-To calculate the angle value, I used the formula for the angles of a triangle,
+To calculate the angle value,
 we calculated the vectors of the triangle sides and used the dot product to find the angle,
 then I converted the angle from radians to degrees.
 and finally I used the `arc` method to draw the arcs on the canvas, and its labels
